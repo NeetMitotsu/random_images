@@ -1,6 +1,7 @@
 from flask import Flask
 from flask import request
 from flask import Response
+from flask import make_response
 import json
 import time
 from urllib.parse import urlparse
@@ -16,20 +17,26 @@ app = Flask(__name__)
 config = configparser.ConfigParser()
 config.read('./resource/profile.ini')
 allowFiles = config.get('conf', 'imageAllowFiles')
-imageManagerListPath = config.get('conf', 'imageAllowFiles')
 basePath = config.get('conf', 'basePath')
-category = config.get('conf', 'category')
+def_category = config.get('conf', 'category')
 
 
 @app.route('/image/<string:category>', methods=['GET', 'POST'])
 def image(category):
+    ref = request.headers.get('REFERER')
+    status = False
+    if ref:
+        parse = urlparse(ref)
+        status = checkReferer(parse.netloc)
+    if not status:
+        return make_response('不支持的url', 404)
     # 没有相对路径， 返回空
     if not category:
-        return Response(status=404)
+        return make_response('资源未找到', 404)
     # 获取文件列表
     filelist = getfiles(category, allowFiles)
     if not filelist:
-        return Response(status=404)
+        return make_response('资源未找到', 404)
     count = len(filelist)
     # 列表下标随机数
     rand = random.choice(range(count))
@@ -47,7 +54,9 @@ def getfiles(category: str, allowFiles: str, files: list = list()):
     path = os.path.abspath('.')
     path = os.path.join(path, basePath, category)
     if not os.path.isdir(path):
-        return None
+        path = os.path.join(path, basePath, def_category)
+        if not os.path.isdir(path):
+            return None
     for filePath in os.listdir(path):
         path2 = os.path.join(path, filePath)
         if os.path.isdir(filePath):
@@ -68,4 +77,4 @@ def checkReferer(url, domainList=['www.yuudati.com', 'www.jty127.com']):
 
 
 if __name__ == '__main__':
-    app.run('127.0.0.1', debug=True)
+    app.run('0.0.0.0', debug=True)
