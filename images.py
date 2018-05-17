@@ -20,7 +20,7 @@ allowFiles = config.get('conf', 'imageAllowFiles')
 basePath = config.get('conf', 'basePath')
 def_category = config.get('conf', 'category')
 whitelist = config.get('conf', 'whitelist')
-
+port = config.getint('conf', 'port')
 
 def getfiles(category: str, allowFiles: str, files: list = list()):
     """
@@ -79,4 +79,6 @@ def image(category):
 
 
 if __name__ == '__main__':
-    app.run('0.0.0.0', debug=True)
+    if not port:
+        port = 6000
+    app.run('0.0.0.0', port=port, debug=False)
