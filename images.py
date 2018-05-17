@@ -19,32 +19,7 @@ config.read('./resource/profile.ini')
 allowFiles = config.get('conf', 'imageAllowFiles')
 basePath = config.get('conf', 'basePath')
 def_category = config.get('conf', 'category')
-
-
-@app.route('/image/<string:category>', methods=['GET', 'POST'])
-def image(category):
-    ref = request.headers.get('REFERER')
-    status = False
-    if ref:
-        parse = urlparse(ref)
-        status = checkReferer(parse.netloc)
-    if not status:
-        return make_response('不支持的url', 404)
-    # 没有相对路径， 返回空
-    if not category:
-        return make_response('资源未找到', 404)
-    # 获取文件列表
-    filelist = getfiles(category, allowFiles)
-    if not filelist:
-        return make_response('资源未找到', 404)
-    count = len(filelist)
-    # 列表下标随机数
-    rand = random.choice(range(count))
-    imgpath = filelist[rand]
-    img = Imgdata(imgpath)
-    info = img.data2img()
-    # response.headers['constent-type'] = info['content-type']
-    return Response(info['data'], mimetype=info['content-type'])
+whitelist = config.get('conf', 'whitelist')
 
 
 def getfiles(category: str, allowFiles: str, files: list = list()):
@@ -67,13 +42,40 @@ def getfiles(category: str, allowFiles: str, files: list = list()):
     return files
 
 
-def checkReferer(url, domainList=['www.yuudati.com', 'www.jty127.com']):
+def checkreferer(url):
     """检查来源网址"""
+    domainlist = whitelist.split(',')
     status = False
     refer = ""
-    if refer in domainList:
+    if refer in domainlist:
         status = True
     return status
+
+
+@app.route('/image/<string:category>', methods=['GET', 'POST'])
+def image(category):
+    ref = request.headers.get('REFERER')
+    status = False
+    if ref:
+        parse = urlparse(ref)
+        status = checkreferer(parse.netloc)
+    if not status:
+        return make_response('不支持的url', 404)
+    # 没有相对路径， 返回空
+    if not category:
+        return make_response('资源未找到', 404)
+    # 获取文件列表
+    filelist = getfiles(category, allowFiles)
+    if not filelist:
+        return make_response('资源未找到', 404)
+    count = len(filelist)
+    # 列表下标随机数
+    rand = random.choice(range(count))
+    imgpath = filelist[rand]
+    img = Imgdata(imgpath)
+    info = img.data2img()
+    # response.headers['constent-type'] = info['content-type']
+    return Response(info['data'], mimetype=info['content-type'])
 
 
 if __name__ == '__main__':
