@@ -2,8 +2,6 @@ from flask import Flask
 from flask import request
 from flask import Response
 from flask import make_response
-import json
-import time
 from urllib.parse import urlparse
 from imgdata import Imgdata
 
@@ -12,24 +10,31 @@ import re
 import configparser
 import random
 
+from flask_sqlalchemy import SQLAlchemy
+
+
 app = Flask(__name__)
 # print(os.path.abspath('.'))
+
+
 config = configparser.ConfigParser()
 config.read('./resource/profile.ini')
 allowFiles = config.get('conf', 'imageAllowFiles')
-basePath = config.get('conf', 'basePath')
 def_category = config.get('conf', 'category')
 whitelist = config.get('conf', 'whitelist')
 port = config.getint('conf', 'port')
+
+dbconfig = config.getint('db', 'SQLALCHEMY_DATABASE_URI')
+
 
 def getfiles(category: str, allowFiles: str, files: list = list()):
     """
     获取图片文件名列表
     """
     path = os.path.abspath('.')
-    path = os.path.join(path, basePath, category)
+    path = os.path.join(path, category)
     if not os.path.isdir(path):
-        path = os.path.join(path, basePath, def_category)
+        path = os.path.join(path, def_category)
         if not os.path.isdir(path):
             return None
     for filePath in os.listdir(path):
@@ -81,4 +86,4 @@ def image(category):
 if __name__ == '__main__':
     if not port:
         port = 6000
-    app.run('0.0.0.0', port=port, debug=False)
+    app.run('0.0.0.0', port=port, debug=True)
