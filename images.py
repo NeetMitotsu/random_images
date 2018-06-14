@@ -3,87 +3,131 @@ from flask import request
 from flask import Response
 from flask import make_response
 from urllib.parse import urlparse
+import asyncio, logging
 from imgdata import Imgdata
 
+import connetcion_pool as pool
 import os
-import re
+
 import configparser
 import random
 
-from flask_sqlalchemy import SQLAlchemy
-
-
 app = Flask(__name__)
-# print(os.path.abspath('.'))
-
 
 config = configparser.ConfigParser()
 config.read('./resource/profile.ini')
 allowFiles = config.get('conf', 'imageAllowFiles')
 def_category = config.get('conf', 'category')
 whitelist = config.get('conf', 'whitelist')
-port = config.getint('conf', 'port')
+server_port = config.getint('conf', 'server_port')
 
-dbconfig = config.getint('db', 'SQLALCHEMY_DATABASE_URI')
+host = config.get('db', 'host')
+port = config.getint('db', 'port')
+user = config.get('db', 'user')
+password = config.get('db', 'password')
+charset = config.get('db', 'charset')
+db = config.get('db', 'db')
 
 
-def getfiles(category: str, allowFiles: str, files: list = list()):
+async def init(loop_in):
     """
-    获取图片文件名列表
+    初始化
+    :return:
     """
-    path = os.path.abspath('.')
-    path = os.path.join(path, category)
-    if not os.path.isdir(path):
-        path = os.path.join(path, def_category)
-        if not os.path.isdir(path):
-            return None
-    for filePath in os.listdir(path):
-        path2 = os.path.join(path, filePath)
-        if os.path.isdir(filePath):
-            getfiles(path2, allowFiles, files)
-        else:
-            if re.match('.*(' + allowFiles + ')$', filePath, re.S):
-                files.append(path2)
-    return files
+    logging.info("program init......")
+    await pool.create_pool(host=host, port=port, user=user, password=password,
+                           charset=charset, db=db, loop=loop_in)
+    # loop_tmp.run_forever()
+loop = asyncio.get_event_loop()
+loop.run_until_complete(init(loop))
 
 
-def checkreferer(url):
+async def get_category_image(category: str = 'ACG', files_url: list = list()):
+    """
+    获取
+
+    :param category: 类别
+    :param files_url: 文件url
+    :return:
+    """
+    data = await pool.select("SELECT photos.url, albums.title FROM ly__lychee_photos photos, " +
+                             "ly__lychee_albums albums WHERE photos.public = 1 OR albums.visible = 1 " +
+                             "AND photos.album = albums.id AND albums.title = %s", category)
+    if data is None or len(data) < 1:
+        return None
+    for i in data:
+        files_url.append(i)
+    return files_url
+
+
+# def get_files(category: str, allowFiles: str, files: list = list()):
+#     """
+#     获取图片文件名列表
+#     """
+#     path = os.path.abspath('.')
+#     path = os.path.join(path, category)
+#     if not os.path.isdir(path):
+#         path = os.path.join(path, def_category)
+#         if not os.path.isdir(path):
+#             return None
+#     for filePath in os.listdir(path):
+#         path2 = os.path.join(path, filePath)
+#         if os.path.isdir(filePath):
+#             getfiles(path2, allowFiles, files)
+#         else:
+#             if re.match('.*(' + allowFiles + ')$', filePath, re.S):
+#                 files.append(path2)
+#     return files
+
+
+def check_referer(url):
     """检查来源网址"""
-    domainlist = whitelist.split(',')
+    domain_list = whitelist.split(',')
     status = False
-    refer = ""
-    if refer in domainlist:
+    # refer = ""
+    if url in domain_list:
         status = True
     return status
 
 
 @app.route('/image/<string:category>', methods=['GET', 'POST'])
-def image(category):
+async def image(category):
     ref = request.headers.get('REFERER')
     status = False
     if ref:
         parse = urlparse(ref)
-        status = checkreferer(parse.netloc)
+        status = check_referer(parse.netloc)
     if not status:
+        logging.info("不支持的来源url：" + ref)
         return make_response('不支持的url', 404)
     # 没有相对路径， 返回空
     if not category:
         return make_response('资源未找到', 404)
     # 获取文件列表
-    filelist = getfiles(category, allowFiles)
-    if not filelist:
+    # file_list = get_files(category, allowFiles)
+    file_list = await get_category_image(category)
+    if not file_list:
         return make_response('资源未找到', 404)
-    count = len(filelist)
+    count = len(file_list)
     # 列表下标随机数
     rand = random.choice(range(count))
-    imgpath = filelist[rand]
-    img = Imgdata(imgpath)
+    img_path = file_list[rand]
+    img = Imgdata(img_path)
     info = img.data2img()
-    # response.headers['constent-type'] = info['content-type']
+    # response.headers['content-type'] = info['content-type']
     return Response(info['data'], mimetype=info['content-type'])
 
 
+@app.route('/')
+def hello_world():
+    return 'Hello World!'
+
+
 if __name__ == '__main__':
-    if not port:
-        port = 6000
-    app.run('0.0.0.0', port=port, debug=True)
+    # try:
+    if not server_port:
+        server_port = 6000
+
+    app.run(host='127.0.0.1', port=5000, debug=True)
+    # finally:
+    #     loop.close()

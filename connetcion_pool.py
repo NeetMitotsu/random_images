@@ -36,9 +36,8 @@ async def select(sql, args, size=None):
 
 
 async def test():
-    await create_pool()
+    await create_pool(host = '67.218.132.112', port = 3306,user = 'jty',charset = 'utf8',password = 'jty_1994127',db = 'lychee', loop=loop)
     return await select("select * from ly__lychee_photos", "")
-
 
 
 if __name__ == '__main__':
