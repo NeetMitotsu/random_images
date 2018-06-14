@@ -1,5 +1,5 @@
 import mysql.connector
-conn = mysql.connector.connect(user='root', password='root', host='localhost', port='3306', database='test')
+conn = mysql.connector.connect(user='jty', password='jty_1994127', host='67.218.132.112', port='3306', database='lychee')
 cursor = conn.cursor()
 cursor.execute("SELECT photos.* FROM ly__lychee_photos photos, " +
                "ly__lychee_albums albums WHERE photos.public = 1 OR albums.visible = 1 " +
