@@ -36,11 +36,12 @@ async def select(sql, args, size=None):
 
 
 async def test():
-    await create_pool(loop=loop)
-    return await select("select * from ly__lychee_photos", "")
+    await create_pool(loop=loop, host='', port=3306, user='', password='')
+    rs = await select("select * from ly__lychee_photos", "")
+    return rs
 
-
+loop = asyncio.get_event_loop()
 if __name__ == '__main__':
-    loop = asyncio.get_event_loop()
     rs = loop.run_until_complete(test())
+    # rs = asyncio.ensure_future(foo())
     print(rs)

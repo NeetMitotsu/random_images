@@ -1,16 +1,16 @@
+import asyncio
+import configparser
+import logging
+import random
+from urllib.parse import urlparse
+
 from flask import Flask
-from flask import request
 from flask import Response
 from flask import make_response
-from urllib.parse import urlparse
-import asyncio, logging
-from imgdata import Imgdata
+from flask import request
 
 import connetcion_pool as pool
-import os
-
-import configparser
-import random
+from imgdata import Imgdata
 
 app = Flask(__name__)
 
@@ -38,6 +38,8 @@ async def init(loop_in):
     await pool.create_pool(host=host, port=port, user=user, password=password,
                            charset=charset, db=db, loop=loop_in)
     # loop_tmp.run_forever()
+
+
 loop = asyncio.get_event_loop()
 loop.run_until_complete(init(loop))
 
@@ -91,7 +93,7 @@ def check_referer(url):
 
 
 @app.route('/image/<string:category>', methods=['GET', 'POST'])
-async def image(category):
+def image(category):
     ref = request.headers.get('REFERER')
     status = False
     if ref:
@@ -105,14 +107,16 @@ async def image(category):
         return make_response('资源未找到', 404)
     # 获取文件列表
     # file_list = get_files(category, allowFiles)
-    file_list = await get_category_image(category)
+    # file_list = await get_category_image(category)
+    file_list = get_category_image(category)
+    # file_list = loop.run_until_complete(get_category_image(category))
     if not file_list:
         return make_response('资源未找到', 404)
     count = len(file_list)
     # 列表下标随机数
     rand = random.choice(range(count))
     img_path = file_list[rand]
-    img = Imgdata(img_path)
+    img = Imgdata(img_path['url'])
     info = img.data2img()
     # response.headers['content-type'] = info['content-type']
     return Response(info['data'], mimetype=info['content-type'])
@@ -125,9 +129,10 @@ def hello_world():
 
 if __name__ == '__main__':
     # try:
-    if not server_port:
-        server_port = 6000
-
-    app.run(host='127.0.0.1', port=5000, debug=True)
+    # if not server_port:
+    #     server_port = 6000
+    print('启动')
+    app.debug = True
+    app.run(host='127.0.0.1')
     # finally:
     #     loop.close()
