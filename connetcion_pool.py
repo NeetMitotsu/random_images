@@ -1,4 +1,4 @@
-import asyncio, logging
+import logging
 import aiomysql
 
 __pool = None
@@ -23,25 +23,25 @@ async def create_pool(loop, **kw):
 
 async def select(sql, args, size=None):
     global __pool
-    with (await __pool) as conn:
-        cursor = await conn.cursor(aiomysql.DictCursor)
-        await cursor.execute(sql.replace('?', '%s'), args or ())
-        if size:
-            rs = await cursor.fetchmany(size)
-        else:
-            rs = await cursor.fetchall()
-            await cursor.close()
-        logging.info("rows returned: %s" % len(rs))
-        return rs
+    async with __pool.get() as conn:
+        async with conn.cursor(aiomysql.DictCursor) as cursor:
+            await cursor.execute(sql.replace('?', '%s'), args or ())
+            if size:
+                rs = await cursor.fetchmany(size)
+            else:
+                rs = await cursor.fetchall()
+                await cursor.close()
+            logging.info("rows returned: %s" % len(rs))
+            return rs
 
 
-async def test():
-    await create_pool(loop=loop, host='', port=3306, user='', password='')
-    rs = await select("select * from ly__lychee_photos", "")
-    return rs
+# async def test():
+#     await create_pool(loop=loop, host='', port=3306, user='', password='')
+#     rs = await select("select * from ly__lychee_photos", "")
+#     return rs
 
-loop = asyncio.get_event_loop()
-if __name__ == '__main__':
-    rs = loop.run_until_complete(test())
-    # rs = asyncio.ensure_future(foo())
-    print(rs)
+# loop = asyncio.get_event_loop()
+# if __name__ == '__main__':
+#     rs = loop.run_until_complete(test())
+#     # rs = asyncio.ensure_future(foo())
+#     print(rs)
